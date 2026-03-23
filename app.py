@@ -723,11 +723,17 @@ def quiz_results():
 
 
 # ---------------------------------------------------------------------------
+# Database initialization (runs on import — works with gunicorn and direct)
+# ---------------------------------------------------------------------------
+
+with app.app_context():
+    db.create_all()
+    seed_module.seed(app)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        seed_module.seed(app)
     app.run(debug=True, port=5001)
