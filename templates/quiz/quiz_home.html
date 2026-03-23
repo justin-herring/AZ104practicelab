@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Quiz{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-patch-question me-2"></i>AZ-104 Practice Quiz</h2>
+    <small class="opacity-75">{{ total }} questions across all exam domains</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row g-3 justify-content-center">
+
+    <!-- Quick start all domains -->
+    <div class="col-md-4">
+      <div class="card h-100" style="border-color: var(--azure-blue); border-width: 2px">
+        <div class="card-body text-center py-4">
+          <i class="bi bi-patch-question fs-1 text-primary mb-2 d-block"></i>
+          <h5 class="fw-bold">Full Mixed Quiz</h5>
+          <p class="text-muted small">Random questions from all AZ-104 domains</p>
+          <p class="fw-semibold">{{ total }} questions total</p>
+          <div class="d-flex gap-2 flex-column">
+            <a href="{{ url_for('quiz_start') }}?domain=all&count=10" class="btn btn-azure">
+              <i class="bi bi-play-fill me-1"></i>Start (10 questions)
+            </a>
+            <a href="{{ url_for('quiz_start') }}?domain=all&count=20" class="btn btn-outline-secondary btn-sm">
+              Start (20 questions)
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Domain-specific -->
+    {% for domain in domains %}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2 gap-2">
+            <i class="bi bi-{% if 'Identity' in domain %}person-badge{% elif 'Storage' in domain %}hdd{% elif 'Compute' in domain %}display{% elif 'Network' in domain %}diagram-3{% else %}activity{% endif %} fs-4 text-primary"></i>
+            <h6 class="fw-bold mb-0">{{ domain }}</h6>
+          </div>
+          <p class="text-muted small">{{ counts[domain] }} questions</p>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('quiz_start') }}?domain={{ domain | urlencode }}&count=10" class="btn btn-azure btn-sm flex-fill">
+              <i class="bi bi-play-fill me-1"></i>Start
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+  </div>
+
+  <!-- Exam info -->
+  <div class="card mt-4">
+    <div class="card-header"><i class="bi bi-mortarboard me-2"></i>About AZ-104: Microsoft Azure Administrator</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <h6>Exam Domains & Weights</h6>
+          <table class="table table-sm table-bordered mb-0">
+            <thead><tr><th>Domain</th><th>Weight</th></tr></thead>
+            <tbody>
+              <tr><td>Manage Azure identities and governance</td><td>20-25%</td></tr>
+              <tr><td>Implement and manage storage</td><td>15-20%</td></tr>
+              <tr><td>Deploy and manage Azure compute resources</td><td>20-25%</td></tr>
+              <tr><td>Configure and manage virtual networking</td><td>20-25%</td></tr>
+              <tr><td>Monitor and maintain Azure resources</td><td>10-15%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <h6>Exam Facts</h6>
+          <div class="exam-tip"><strong>Passing score:</strong> 700/1000</div>
+          <div class="exam-tip"><strong>Duration:</strong> ~180 minutes</div>
+          <div class="exam-tip"><strong>Questions:</strong> ~40-60 (varies)</div>
+          <div class="exam-tip"><strong>Question types:</strong> Multiple choice, drag-and-drop, case studies</div>
+          <div class="exam-tip"><strong>Prerequisites:</strong> 6+ months Azure experience recommended</div>
+          <div class="callout callout-tip mt-2">
+            A score of 70%+ on practice quizzes is a good indicator of readiness. Focus on domains where you score lower.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

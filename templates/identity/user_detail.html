@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ user.display_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('users_list') }}" class="text-white-50">Users</a></li>
+      <li class="breadcrumb-item active">{{ user.display_name }}</li>
+    </ol></nav>
+    <h2><i class="bi bi-person-circle me-2"></i>{{ user.display_name }}</h2>
+    <small class="opacity-75">{{ user.upn }} · {{ user.job_title or 'No title' }} · {{ user.department or 'No department' }}</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row g-3">
+
+    <!-- User Profile -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-person me-2"></i>Profile</div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-5 small text-muted">Display Name</dt>
+            <dd class="col-7 small">{{ user.display_name }}</dd>
+            <dt class="col-5 small text-muted">UPN</dt>
+            <dd class="col-7 small"><code>{{ user.upn }}</code></dd>
+            <dt class="col-5 small text-muted">User Type</dt>
+            <dd class="col-7 small">
+              {% if user.user_type == 'Guest' %}
+                <span class="badge bg-warning text-dark">Guest</span>
+              {% else %}
+                <span class="badge bg-secondary">Member</span>
+              {% endif %}
+            </dd>
+            <dt class="col-5 small text-muted">Account Status</dt>
+            <dd class="col-7 small">
+              {% if user.account_enabled %}<span class="text-success fw-semibold">Enabled</span>
+              {% else %}<span class="text-danger fw-semibold">Disabled</span>{% endif %}
+            </dd>
+            <dt class="col-5 small text-muted">MFA</dt>
+            <dd class="col-7 small">
+              {% if user.mfa_enabled %}<span class="mfa-on"><i class="bi bi-shield-check me-1"></i>Enabled</span>
+              {% else %}<span class="mfa-off"><i class="bi bi-shield-x me-1"></i>Disabled</span>{% endif %}
+            </dd>
+            <dt class="col-5 small text-muted">Job Title</dt>
+            <dd class="col-7 small">{{ user.job_title or '—' }}</dd>
+            <dt class="col-5 small text-muted">Department</dt>
+            <dd class="col-7 small">{{ user.department or '—' }}</dd>
+            <dt class="col-5 small text-muted">Created</dt>
+            <dd class="col-7 small">{{ user.created_at.strftime('%Y-%m-%d') }}</dd>
+          </dl>
+
+          <div class="mt-3 d-flex gap-2">
+            <form action="{{ url_for('user_toggle_mfa', user_id=user.id) }}" method="POST">
+              <button type="submit" class="btn btn-sm {% if user.mfa_enabled %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                <i class="bi bi-shield me-1"></i>{% if user.mfa_enabled %}Disable MFA{% else %}Enable MFA{% endif %}
+              </button>
+            </form>
+            <form action="{{ url_for('user_delete', user_id=user.id) }}" method="POST"
+                  onsubmit="return confirm('Delete user {{ user.display_name }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash me-1"></i>Delete
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group Membership -->
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-people me-2"></i>Group Memberships ({{ user.groups|length }})</div>
+        <div class="card-body">
+          {% if user.groups %}
+            {% for group in user.groups %}
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <a href="{{ url_for('group_detail', group_id=group.id) }}" class="text-decoration-none small">
+                <i class="bi bi-people me-1 text-muted"></i>{{ group.display_name }}
+              </a>
+              <span class="badge bg-light text-dark border">{{ group.group_type }}</span>
+            </div>
+            {% endfor %}
+          {% else %}
+            <small class="text-muted">No group memberships. <strong>Best practice:</strong> Add user to groups before assigning roles.</small>
+          {% endif %}
+
+          <hr class="my-2">
+          <form action="{{ url_for('group_add_member', group_id=0) }}" method="POST" class="d-none"><!-- handled via group detail --></form>
+          <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Manage group memberships from the <a href="{{ url_for('groups_list') }}">Groups</a> page.</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Assignments -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-shield-lock me-2"></i>Effective Role Assignments
+          <span class="badge bg-secondary ms-2">{{ all_assignments|length }}</span>
+          <small class="text-muted ms-2">(direct + inherited from groups)</small>
+        </div>
+        <div class="card-body">
+          {% if not all_assignments %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-shield-x fs-2 mb-2 d-block"></i>
+              No role assignments. This user has <strong>zero</strong> access to Azure resources.
+              <br>Assign roles via <a href="{{ url_for('rbac_assignments') }}">RBAC → Role Assignments</a>.
+            </div>
+          {% else %}
+            <div class="callout mb-3">
+              <i class="bi bi-info-circle me-1"></i>
+              Azure RBAC is <strong>additive</strong>: effective access = union of all role assignments
+              at and above the target scope. Assignments are inherited DOWN the hierarchy.
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Role</th>
+                    <th>Scope Level</th>
+                    <th>Scope</th>
+                    <th>Via</th>
+                    <th>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ra in all_assignments %}
+                  <tr>
+                    <td>
+                      <a href="{{ url_for('rbac_role_detail', role_id=ra.role_definition_id) }}" class="text-decoration-none fw-semibold small">
+                        {{ ra.role_definition.name }}
+                      </a>
+                    </td>
+                    <td>
+                      {% if ra.scope_level == 'ManagementGroup' %}<span class="badge badge-scope-mg">MG</span>
+                      {% elif ra.scope_level == 'Subscription' %}<span class="badge badge-scope-sub">Sub</span>
+                      {% elif ra.scope_level == 'ResourceGroup' %}<span class="badge badge-scope-rg">RG</span>
+                      {% else %}<span class="badge badge-scope-res">Resource</span>{% endif %}
+                    </td>
+                    <td><small>{{ ra.scope_name }}</small></td>
+                    <td>
+                      {% if ra.user_id == user.id %}
+                        <span class="badge bg-primary">Direct</span>
+                      {% else %}
+                        <span class="badge bg-secondary">Group: {{ ra.group_principal.display_name if ra.group_principal else '?' }}</span>
+                      {% endif %}
+                    </td>
+                    <td><small class="text-muted">{{ ra.role_definition.role_type }}</small></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- RBAC Simulator shortcut -->
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-play-circle me-2"></i>Test This User's Access</div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Use the RBAC Simulator to check what actions this user can perform at specific scopes.</p>
+          <a href="{{ url_for('rbac_simulator') }}" class="btn btn-azure btn-sm">
+            <i class="bi bi-play-circle me-1"></i>Open RBAC Simulator
+          </a>
+          <div class="callout callout-tip mt-3">
+            <strong>Suggested tests for {{ user.display_name }}:</strong><br>
+            {% if 'alice' in user.upn.lower() %}
+            <code class="small">Microsoft.Compute/virtualMachines/write @ rg-web-prod → ALLOW (Owner via MG)</code>
+            {% elif 'bob' in user.upn.lower() %}
+            <code class="small">Microsoft.Sql/servers/write @ rg-data-prod → DENY (Reader only)</code><br>
+            <code class="small">Microsoft.Compute/virtualMachines/write @ rg-web-prod → ALLOW (Contributor)</code>
+            {% elif 'carol' in user.upn.lower() %}
+            <code class="small">Microsoft.Storage/storageAccounts/read @ rg-data-prod → ALLOW</code>
+            {% elif 'dave' in user.upn.lower() %}
+            <code class="small">Microsoft.Network/virtualNetworks/write @ rg-network-prod → ALLOW</code><br>
+            <code class="small">Microsoft.Compute/virtualMachines/write @ rg-web-prod → DENY (wrong RG)</code>
+            {% else %}
+            <code class="small">Try any action at any scope to see RBAC evaluation</code>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

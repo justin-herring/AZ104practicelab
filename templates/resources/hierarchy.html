@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Resource Hierarchy{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-diagram-3 me-2"></i>Azure Resource Hierarchy</h2>
+    <small class="opacity-75">Management Groups → Subscriptions → Resource Groups → Resources</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="callout mb-3">
+    The Azure resource hierarchy is fundamental to governance and RBAC.
+    <strong>RBAC assignments and Azure Policies inherit DOWN this hierarchy.</strong>
+    A policy applied at a Management Group enforces on all child subscriptions, resource groups, and resources.
+  </div>
+
+  <div class="row g-3">
+    <!-- Tree View -->
+    <div class="col-md-8">
+      {% for mg in mgs %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <span class="badge badge-scope-mg me-2">Management Group</span>
+          <strong>{{ mg.display_name }}</strong>
+          <code class="text-muted ms-2 small">{{ mg.scope_id }}</code>
+          <span class="badge bg-light text-dark border ms-2">{{ mg.role_assignments|length }} role assignments</span>
+        </div>
+        <div class="card-body pb-1">
+          {% set mg_subs = subs | selectattr('management_group_id', 'equalto', mg.id) | list %}
+          {% if mg_subs %}
+            {% for sub in mg_subs %}
+            <div class="hierarchy-sub mb-2">
+              <div class="d-flex align-items-center mb-1">
+                <span class="badge badge-scope-sub me-2">Subscription</span>
+                <strong>{{ sub.name }}</strong>
+                <code class="text-muted ms-2 small">{{ sub.subscription_id }}</code>
+                <span class="badge bg-light text-dark border ms-2">{{ sub.role_assignments|length }} RAs</span>
+              </div>
+
+              {% set sub_rgs = rgs | selectattr('subscription_id', 'equalto', sub.id) | list %}
+              {% for rg in sub_rgs %}
+              <div class="hierarchy-rg mb-1">
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                  <span class="badge badge-scope-rg">RG</span>
+                  <strong class="small">{{ rg.name }}</strong>
+                  <span class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ rg.location }}</span>
+                  {% if rg.tags_parsed() %}
+                    {% for k, v in rg.tags_parsed().items() %}
+                    <span class="badge bg-light text-dark border" style="font-size:0.65rem">{{ k }}: {{ v }}</span>
+                    {% endfor %}
+                  {% endif %}
+                  <span class="badge bg-light text-dark border ms-1">{{ rg.role_assignments|length }} RAs</span>
+                </div>
+
+                {% set rg_resources = resources | selectattr('resource_group_id', 'equalto', rg.id) | list %}
+                {% for res in rg_resources %}
+                <div class="hierarchy-res d-flex align-items-center gap-2 mt-1">
+                  <i class="bi {{ res.type_icon }} text-muted"></i>
+                  <span class="small fw-semibold">{{ res.name }}</span>
+                  <span class="badge bg-light text-dark border" style="font-size:0.65rem">{{ res.type_short }}</span>
+                  <span class="text-muted small">{{ res.location }}</span>
+                  {% if res.role_assignments %}
+                  <span class="badge badge-scope-res" style="font-size:0.65rem">{{ res.role_assignments|length }} RAs</span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted small">No subscriptions under this management group.</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Summary + Concepts -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart me-2"></i>Environment Summary</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span><span class="badge badge-scope-mg me-1">MG</span> Management Groups</span>
+            <strong>{{ mgs|length }}</strong>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span><span class="badge badge-scope-sub me-1">Sub</span> Subscriptions</span>
+            <strong>{{ subs|length }}</strong>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span><span class="badge badge-scope-rg me-1">RG</span> Resource Groups</span>
+            <strong>{{ rgs|length }}</strong>
+          </div>
+          <div class="d-flex align-items-center justify-content-between">
+            <span><span class="badge badge-scope-res me-1">Res</span> Resources</span>
+            <strong>{{ resources|length }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-lightbulb me-2"></i>Key Hierarchy Concepts</div>
+        <div class="card-body">
+          <div class="exam-tip"><strong>RBAC Inheritance:</strong> Assignments flow DOWN. Owner at MG = Owner on everything below.</div>
+          <div class="exam-tip"><strong>Azure Policy:</strong> Also inherits down. Policies at MG enforce on all child subscriptions.</div>
+          <div class="exam-tip"><strong>Resource Group:</strong> Shared lifecycle. Delete the RG = delete all resources in it.</div>
+          <div class="exam-tip"><strong>Subscription:</strong> Primary billing boundary. Moving resources between subscriptions requires specific steps.</div>
+          <div class="exam-tip"><strong>Management Group:</strong> Up to 6 levels deep. Root MG is created automatically per tenant.</div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-terminal me-2"></i>Azure CLI</div>
+        <div class="card-body p-0">
+          <div class="cli-block px-3 py-2">
+# List management groups
+az account management-group list --output table
+
+# List subscriptions
+az account list --output table
+
+# List resource groups
+az group list --output table
+
+# Create a resource group
+az group create --name rg-new --location eastus
+
+# Move resource to another RG
+az resource move --ids {resource-id} \
+  --destination-group rg-new</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

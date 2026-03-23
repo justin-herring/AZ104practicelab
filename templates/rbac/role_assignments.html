@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Role Assignments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">RBAC</li><li class="breadcrumb-item active">Role Assignments</li></ol></nav>
+    <h2><i class="bi bi-person-check me-2"></i>Role Assignments</h2>
+    <small class="opacity-75">Who has access to what — the heart of Azure RBAC</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="callout mb-3">
+    A <strong>Role Assignment</strong> = Principal (who) + Role Definition (what permissions) + Scope (where).
+    Assignments are <strong>additive</strong> and inherit DOWN the scope hierarchy.
+    Azure defaults to <strong>DENY</strong> if no assignment grants access.
+  </div>
+
+  <div class="row g-3">
+
+    <!-- Create Assignment Form -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-plus-circle me-2"></i>Create Role Assignment</div>
+        <div class="card-body">
+          <form action="{{ url_for('rbac_assignment_create') }}" method="POST">
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">1. Select Role</label>
+              <select name="role_id" class="form-select form-select-sm" required>
+                <option value="">— choose role —</option>
+                {% for role in roles %}
+                <option value="{{ role.id }}">
+                  {{ role.name }}{% if role.role_type == 'CustomRole' %} (Custom){% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">2. Principal Type</label>
+              <select name="principal_type" id="principalTypeSelect" class="form-select form-select-sm"
+                      onchange="updatePrincipalList()" required>
+                <option value="user">User</option>
+                <option value="group">Group</option>
+                <option value="sp">Service Principal</option>
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">3. Select Principal</label>
+              <select name="principal_id" id="principalSelect" class="form-select form-select-sm" required>
+                {% for user in users %}
+                <option value="{{ user.id }}" data-type="user">{{ user.display_name }}</option>
+                {% endfor %}
+                {% for group in groups %}
+                <option value="{{ group.id }}" data-type="group" style="display:none">{{ group.display_name }}</option>
+                {% endfor %}
+                {% for sp in sps %}
+                <option value="{{ sp.id }}" data-type="sp" style="display:none">{{ sp.display_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">4. Scope Type</label>
+              <select name="scope_type" id="scopeTypeSelect" class="form-select form-select-sm"
+                      onchange="updateScopeList()" required>
+                <option value="mg">Management Group</option>
+                <option value="sub">Subscription</option>
+                <option value="rg" selected>Resource Group</option>
+                <option value="resource">Resource</option>
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">5. Select Scope</label>
+              <select name="scope_id" id="scopeSelect" class="form-select form-select-sm" required>
+                {% for mg in mgs %}
+                <option value="{{ mg.id }}" data-stype="mg" style="display:none">{{ mg.display_name }}</option>
+                {% endfor %}
+                {% for sub in subs %}
+                <option value="{{ sub.id }}" data-stype="sub" style="display:none">{{ sub.name }}</option>
+                {% endfor %}
+                {% for rg in rgs %}
+                <option value="{{ rg.id }}" data-stype="rg">{{ rg.name }} ({{ rg.subscription.name }})</option>
+                {% endfor %}
+                {% for res in resources %}
+                <option value="{{ res.id }}" data-stype="resource" style="display:none">{{ res.name }} ({{ res.type_short }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Description (optional)</label>
+              <input type="text" name="description" class="form-control form-control-sm" placeholder="Why is this assignment needed?">
+            </div>
+
+            <button type="submit" class="btn btn-azure btn-sm w-100">
+              <i class="bi bi-plus me-1"></i>Create Assignment
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-lightbulb me-2"></i>Scope Inheritance</div>
+        <div class="card-body">
+          <div class="hierarchy-tree">
+            <div class="hierarchy-mg"><span class="badge badge-scope-mg me-1">MG</span> Management Group → broadest</div>
+            <div class="hierarchy-sub"><span class="badge badge-scope-sub me-1">Sub</span> Subscription</div>
+            <div class="hierarchy-rg"><span class="badge badge-scope-rg me-1">RG</span> Resource Group</div>
+            <div class="hierarchy-res"><span class="badge badge-scope-res me-1">Res</span> Resource → narrowest</div>
+          </div>
+          <div class="callout mt-2">
+            Assignments at broader scopes <strong>inherit down</strong>.
+            Owner at MG = Owner on everything below it.
+            Prefer narrower scopes (least-privilege).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assignments Table -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-person-check me-2"></i>{{ assignments|length }} Role Assignments</span>
+          <a href="{{ url_for('rbac_simulator') }}" class="btn btn-azure btn-sm">
+            <i class="bi bi-play-circle me-1"></i>Test Access
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Principal</th>
+                  <th>Type</th>
+                  <th>Role</th>
+                  <th>Scope Level</th>
+                  <th>Scope</th>
+                  <th>Assigned</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ra in assignments %}
+                <tr>
+                  <td class="fw-semibold small">
+                    {% if ra.principal_type == 'User' %}<i class="bi bi-person me-1 text-muted"></i>
+                    {% elif ra.principal_type == 'Group' %}<i class="bi bi-people me-1 text-muted"></i>
+                    {% else %}<i class="bi bi-app me-1 text-muted"></i>{% endif %}
+                    {{ ra.principal_name }}
+                  </td>
+                  <td><span class="badge bg-light text-dark border" style="font-size:0.7rem">{{ ra.principal_type }}</span></td>
+                  <td>
+                    <a href="{{ url_for('rbac_role_detail', role_id=ra.role_definition_id) }}" class="text-decoration-none small fw-semibold">
+                      {{ ra.role_definition.name }}
+                    </a>
+                    {% if ra.role_definition.role_type == 'CustomRole' %}
+                      <span class="badge bg-info text-dark ms-1" style="font-size:0.65rem">Custom</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if ra.scope_level == 'ManagementGroup' %}<span class="badge badge-scope-mg">MG</span>
+                    {% elif ra.scope_level == 'Subscription' %}<span class="badge badge-scope-sub">Sub</span>
+                    {% elif ra.scope_level == 'ResourceGroup' %}<span class="badge badge-scope-rg">RG</span>
+                    {% else %}<span class="badge badge-scope-res">Resource</span>{% endif %}
+                  </td>
+                  <td><small>{{ ra.scope_name }}</small></td>
+                  <td><small class="text-muted">{{ ra.assigned_at.strftime('%Y-%m-%d') }}</small></td>
+                  <td>
+                    <form action="{{ url_for('rbac_assignment_delete', assignment_id=ra.id) }}" method="POST"
+                          onsubmit="return confirm('Remove this role assignment?')">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove assignment">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+function updatePrincipalList() {
+  const type = document.getElementById('principalTypeSelect').value;
+  const select = document.getElementById('principalSelect');
+  Array.from(select.options).forEach(opt => {
+    opt.style.display = opt.dataset.type === type ? '' : 'none';
+  });
+  const firstVisible = Array.from(select.options).find(o => o.style.display !== 'none');
+  if (firstVisible) firstVisible.selected = true;
+}
+
+function updateScopeList() {
+  const type = document.getElementById('scopeTypeSelect').value;
+  const select = document.getElementById('scopeSelect');
+  Array.from(select.options).forEach(opt => {
+    opt.style.display = opt.dataset.stype === type ? '' : 'none';
+  });
+  const firstVisible = Array.from(select.options).find(o => o.style.display !== 'none');
+  if (firstVisible) firstVisible.selected = true;
+}
+</script>
+{% endblock %}
+{% endblock %}

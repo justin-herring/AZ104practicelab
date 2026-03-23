@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-activity me-2"></i>Activity Log</h2>
+    <small class="opacity-75">Azure Monitor Activity Log — records all subscription-level management operations</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="callout mb-3">
+    The <strong>Azure Activity Log</strong> (equivalent to AWS CloudTrail) records every management operation:
+    who performed it, when, what resource was affected, and whether it succeeded or failed.
+    Critical for <strong>security audits, incident response, and compliance</strong>.
+    Retention: 90 days by default — export to Log Analytics or Storage for longer retention.
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-activity me-2"></i>Management Operations</span>
+      <small class="text-muted">Page {{ logs.page }} of {{ logs.pages }}</small>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Operation</th>
+            <th>Resource</th>
+            <th>Called By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs.items %}
+          <tr>
+            <td class="text-nowrap"><small class="text-muted">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+            <td>
+              <span class="log-{{ log.status|lower }}">
+                <i class="bi bi-{% if log.status == 'Succeeded' %}check-circle{% elif log.status == 'Failed' %}x-circle{% else %}clock{% endif %} me-1"></i>
+                {{ log.status }}
+              </span>
+            </td>
+            <td>
+              <code class="small" style="font-size:0.75rem">{{ log.operation }}</code>
+            </td>
+            <td>
+              <small>
+                {% if log.resource_type %}<span class="text-muted">{{ log.resource_type.split('/')[-1] }}:</span> {% endif %}
+                {{ log.resource_name or '—' }}
+              </small>
+              {% if log.detail_parsed() and log.status == 'Failed' %}
+              <br><small class="text-danger">{{ log.detail_parsed().get('error', '') }}</small>
+              {% endif %}
+            </td>
+            <td>
+              <small>
+                <i class="bi bi-{% if '@' in (log.caller or '') %}person{% else %}app{% endif %} me-1 text-muted"></i>
+                {{ log.caller }}
+              </small>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if logs.pages > 1 %}
+    <div class="card-footer">
+      <nav>
+        <ul class="pagination pagination-sm mb-0 justify-content-center">
+          {% if logs.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('activity_log', page=logs.prev_num) }}">‹ Prev</a>
+          </li>
+          {% endif %}
+          <li class="page-item disabled"><span class="page-link">{{ logs.page }} / {{ logs.pages }}</span></li>
+          {% if logs.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('activity_log', page=logs.next_num) }}">Next ›</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- KQL query examples -->
+  <div class="card mt-3">
+    <div class="card-header"><i class="bi bi-search me-2"></i>KQL Queries for Log Analytics (AZ-104 Exam)</div>
+    <div class="card-body">
+      <p class="text-muted small mb-2">In real Azure, you'd query the Activity Log with KQL in Log Analytics:</p>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <div class="cli-block">// Failed operations in last 24 hours
+AzureActivity
+| where ActivityStatusValue == "Failed"
+| where TimeGenerated > ago(24h)
+| project TimeGenerated, Caller, OperationNameValue, ResourceGroup
+| order by TimeGenerated desc</div>
+        </div>
+        <div class="col-md-6">
+          <div class="cli-block">// RBAC role assignment changes
+AzureActivity
+| where OperationNameValue contains "roleAssignments"
+| project TimeGenerated, Caller, OperationNameValue, Properties
+| order by TimeGenerated desc</div>
+        </div>
+      </div>
+      <div class="exam-tip mt-2">
+        <strong>Exam tip:</strong> KQL (Kusto Query Language) is used in Log Analytics, Azure Monitor, and Microsoft Sentinel.
+        Key operators: <code>where</code>, <code>project</code>, <code>summarize</code>, <code>order by</code>, <code>ago()</code>.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

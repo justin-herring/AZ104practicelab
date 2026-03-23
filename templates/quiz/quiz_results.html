@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Quiz Results{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-trophy me-2"></i>Quiz Results</h2>
+    <small class="opacity-75">{{ correct_count }}/{{ total }} correct</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+
+      <!-- Score card -->
+      <div class="card mb-3 text-center">
+        <div class="card-body py-4">
+          <div class="score-circle {% if score >= 70 %}score-pass{% else %}score-fail{% endif %} mb-3">
+            <div style="font-size:1.8rem">{{ score }}%</div>
+            <small>{{ pass_fail }}</small>
+          </div>
+          <h4>{% if score >= 85 %}Excellent!{% elif score >= 70 %}Good work!{% elif score >= 50 %}Keep studying{% else %}More practice needed{% endif %}</h4>
+          <p class="text-muted">{{ correct_count }} correct out of {{ total }} questions</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('quiz_home') }}" class="btn btn-azure">
+              <i class="bi bi-arrow-repeat me-1"></i>Take Another Quiz
+            </a>
+            <a href="{{ url_for('labs_list') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-journal-code me-1"></i>Practice in Labs
+            </a>
+          </div>
+          {% if score < 70 %}
+          <div class="callout callout-warn mt-3 text-start">
+            <strong>Tip:</strong> AZ-104 passing score is 700/1000. Review the explanations below for questions you missed, then try the related labs.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Question review -->
+      <h5 class="mb-3">Question Review</h5>
+      {% for r in results %}
+      <div class="card mb-3 {% if r.is_correct %}border-success{% else %}border-danger{% endif %}" style="border-width:2px">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>
+            {% if r.is_correct %}
+              <i class="bi bi-check-circle-fill text-success me-1"></i>Correct
+            {% else %}
+              <i class="bi bi-x-circle-fill text-danger me-1"></i>Incorrect
+            {% endif %}
+          </span>
+          <div>
+            <span class="badge bg-secondary me-1">{{ r.question.domain }}</span>
+            <span class="badge bg-{% if r.question.difficulty == 'Easy' %}success{% elif r.question.difficulty == 'Medium' %}warning text-dark{% else %}danger{% endif %}">{{ r.question.difficulty }}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="fw-semibold mb-2">{{ r.question.question }}</p>
+
+          {% set letters = ['A', 'B', 'C', 'D'] %}
+          {% for option in r.options %}{% set i = loop.index0 %}
+          <div class="quiz-option mb-1 {% if i == r.question.correct_answer %}correct{% elif r.user_answer == i and not r.is_correct %}incorrect{% endif %}" style="cursor:default">
+            <strong class="me-2">{{ letters[i] }}.</strong>{{ option }}
+            {% if i == r.question.correct_answer %}
+              <span class="badge bg-success ms-2">Correct answer</span>
+            {% endif %}
+            {% if r.user_answer == i and not r.is_correct %}
+              <span class="badge bg-danger ms-2">Your answer</span>
+            {% endif %}
+            {% if r.user_answer is none and i == r.question.correct_answer %}
+              <span class="badge bg-warning text-dark ms-2">Not answered</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="callout callout-tip mt-2">
+            <strong>Explanation:</strong> {{ r.question.explanation }}
+            {% if r.question.reference %}
+            <br><small class="text-muted"><i class="bi bi-book me-1"></i>{{ r.question.reference }}</small>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

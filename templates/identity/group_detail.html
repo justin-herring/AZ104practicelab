@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ group.display_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('groups_list') }}" class="text-white-50">Groups</a></li>
+      <li class="breadcrumb-item active">{{ group.display_name }}</li>
+    </ol></nav>
+    <h2><i class="bi bi-people me-2"></i>{{ group.display_name }}</h2>
+    <small class="opacity-75">{{ group.group_type }} Group · {{ group.members|length }} members · {{ group.role_assignments|length }} role assignments</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row g-3">
+
+    <!-- Group Info + Role Assignments -->
+    <div class="col-md-5">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle me-2"></i>Group Details</div>
+        <div class="card-body">
+          <dl class="row mb-2">
+            <dt class="col-5 small text-muted">Type</dt>
+            <dd class="col-7 small"><span class="badge bg-secondary">{{ group.group_type }}</span></dd>
+            <dt class="col-5 small text-muted">Role-Assignable</dt>
+            <dd class="col-7 small">
+              {% if group.assignable_to_role %}
+                <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Yes</span>
+              {% else %}
+                <span class="text-muted">No</span>
+              {% endif %}
+            </dd>
+            <dt class="col-5 small text-muted">Description</dt>
+            <dd class="col-7 small">{{ group.description or '—' }}</dd>
+            <dt class="col-5 small text-muted">Created</dt>
+            <dd class="col-7 small">{{ group.created_at.strftime('%Y-%m-%d') }}</dd>
+          </dl>
+          <form action="{{ url_for('group_delete', group_id=group.id) }}" method="POST"
+                onsubmit="return confirm('Delete group {{ group.display_name }}?')">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash me-1"></i>Delete Group
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Role Assignments on this group -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <i class="bi bi-shield-lock me-2"></i>Role Assignments ({{ group.role_assignments|length }})
+          <small class="text-muted ms-1">— inherited by all members</small>
+        </div>
+        <div class="card-body p-0">
+          {% if group.role_assignments %}
+            <div class="list-group list-group-flush">
+              {% for ra in group.role_assignments %}
+              <div class="list-group-item py-2 px-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <a href="{{ url_for('rbac_role_detail', role_id=ra.role_definition_id) }}" class="fw-semibold text-decoration-none small">{{ ra.role_definition.name }}</a>
+                    <div class="text-muted" style="font-size:0.75rem">@ {{ ra.scope_name }}</div>
+                  </div>
+                  {% if ra.scope_level == 'ManagementGroup' %}<span class="badge badge-scope-mg">MG</span>
+                  {% elif ra.scope_level == 'Subscription' %}<span class="badge badge-scope-sub">Sub</span>
+                  {% elif ra.scope_level == 'ResourceGroup' %}<span class="badge badge-scope-rg">RG</span>
+                  {% else %}<span class="badge badge-scope-res">Res</span>{% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="p-3 text-muted small">No role assignments on this group.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-person me-2"></i>Members ({{ group.members|length }})</span>
+        </div>
+        <div class="card-body">
+          <!-- Add member -->
+          <form action="{{ url_for('group_add_member', group_id=group.id) }}" method="POST" class="d-flex gap-2 mb-3">
+            <select name="user_id" class="form-select form-select-sm">
+              {% set member_ids = group.members | map(attribute='id') | list %}
+              {% for user in all_users %}
+                {% if user.id not in member_ids %}
+                  <option value="{{ user.id }}">{{ user.display_name }} ({{ user.upn }})</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-azure btn-sm text-nowrap">
+              <i class="bi bi-plus me-1"></i>Add Member
+            </button>
+          </form>
+
+          {% if group.members %}
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr><th>Name</th><th>UPN</th><th>MFA</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for member in group.members %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('user_detail', user_id=member.id) }}" class="text-decoration-none">
+                      <i class="bi bi-person-circle me-1 text-muted"></i>{{ member.display_name }}
+                    </a>
+                    {% if member.user_type == 'Guest' %}<span class="badge bg-warning text-dark ms-1">Guest</span>{% endif %}
+                  </td>
+                  <td><small class="text-muted">{{ member.upn }}</small></td>
+                  <td>
+                    {% if member.mfa_enabled %}<span class="mfa-on"><i class="bi bi-shield-check"></i></span>
+                    {% else %}<span class="mfa-off"><i class="bi bi-shield-x"></i></span>{% endif %}
+                  </td>
+                  <td>
+                    <form action="{{ url_for('group_remove_member', group_id=group.id) }}" method="POST" class="d-inline">
+                      <input type="hidden" name="user_id" value="{{ member.id }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from group">
+                        <i class="bi bi-person-dash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="text-muted small text-center py-3">
+              <i class="bi bi-people fs-2 d-block mb-1"></i>No members. Add users above.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

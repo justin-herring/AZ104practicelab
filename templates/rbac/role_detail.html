@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ role.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('rbac_roles') }}" class="text-white-50">Roles</a></li>
+      <li class="breadcrumb-item active">{{ role.name }}</li>
+    </ol></nav>
+    <h2><i class="bi bi-card-list me-2"></i>{{ role.name }}</h2>
+    <small class="opacity-75">
+      {% if role.role_type == 'CustomRole' %}
+        <span class="badge bg-warning text-dark me-1">Custom Role</span>
+      {% else %}
+        <span class="badge bg-secondary me-1">Built-in Role</span>
+      {% endif %}
+      {{ role.role_assignments|length }} assignment(s)
+    </small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+
+  {% if health %}
+  <div class="alert alert-warning mb-3">
+    <strong><i class="bi bi-exclamation-triangle me-2"></i>Security Observations:</strong>
+    <ul class="mb-0 mt-1">
+      {% for h in health %}<li>{{ h }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-md-5">
+      <!-- Role Info -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle me-2"></i>Role Info</div>
+        <div class="card-body">
+          <p class="small">{{ role.description }}</p>
+          <dl class="row mb-0">
+            <dt class="col-5 small text-muted">Type</dt>
+            <dd class="col-7 small">
+              {% if role.role_type == 'CustomRole' %}
+                <span class="badge bg-primary">Custom Role</span>
+              {% else %}
+                <span class="badge bg-secondary">Built-in</span>
+              {% endif %}
+            </dd>
+            <dt class="col-5 small text-muted">Assignments</dt>
+            <dd class="col-7 small">{{ role.role_assignments|length }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <i class="bi bi-check-circle me-2 text-success"></i>Actions
+          <small class="text-muted">(control plane — what you can do to Azure resources)</small>
+        </div>
+        <div class="card-body p-0">
+          {% for action in role.actions_list() %}
+          <div class="px-3 py-1 border-bottom"><code class="small text-success">{{ action }}</code></div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if role.not_actions_list() %}
+      <div class="card mt-3">
+        <div class="card-header">
+          <i class="bi bi-dash-circle me-2 text-warning"></i>NotActions
+          <small class="text-muted">(removed from Actions — NOT the same as a Deny)</small>
+        </div>
+        <div class="card-body p-0">
+          {% for action in role.not_actions_list() %}
+          <div class="px-3 py-1 border-bottom"><code class="small text-warning">{{ action }}</code></div>
+          {% endfor %}
+          <div class="callout callout-warn m-2" style="font-size:0.8rem">
+            <strong>Key exam concept:</strong> NotActions removes permissions from THIS role's Actions.
+            It is NOT an explicit Deny. Another role assignment could still grant these permissions.
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if role.data_actions_list() %}
+      <div class="card mt-3">
+        <div class="card-header">
+          <i class="bi bi-database me-2 text-info"></i>DataActions
+          <small class="text-muted">(data plane — e.g., read/write blobs, queue messages)</small>
+        </div>
+        <div class="card-body p-0">
+          {% for action in role.data_actions_list() %}
+          <div class="px-3 py-1 border-bottom"><code class="small text-info">{{ action }}</code></div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Assignments using this role -->
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-person-check me-2"></i>Assignments Using This Role ({{ role.role_assignments|length }})</div>
+        {% if role.role_assignments %}
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Principal</th><th>Principal Type</th><th>Scope Level</th><th>Scope</th></tr></thead>
+            <tbody>
+              {% for ra in role.role_assignments %}
+              <tr>
+                <td class="small fw-semibold">{{ ra.principal_name }}</td>
+                <td><span class="badge bg-light text-dark border" style="font-size:0.7rem">{{ ra.principal_type }}</span></td>
+                <td>
+                  {% if ra.scope_level == 'ManagementGroup' %}<span class="badge badge-scope-mg">MG</span>
+                  {% elif ra.scope_level == 'Subscription' %}<span class="badge badge-scope-sub">Sub</span>
+                  {% elif ra.scope_level == 'ResourceGroup' %}<span class="badge badge-scope-rg">RG</span>
+                  {% else %}<span class="badge badge-scope-res">Resource</span>{% endif %}
+                </td>
+                <td><small>{{ ra.scope_name }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="card-body text-muted small">No assignments using this role.</div>
+        {% endif %}
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-terminal me-2"></i>Azure CLI</div>
+        <div class="card-body">
+          <div class="cli-block"># View role definition
+az role definition list --name "{{ role.name }}" --output json
+
+# List all assignments using this role
+az role assignment list --role "{{ role.name }}" --all --output table
+
+{% if role.role_type == 'CustomRole' %}
+# Update a custom role (export → edit → update)
+az role definition list --name "{{ role.name }}" --output json > role.json
+# Edit role.json, then:
+az role definition update --role-definition @role.json
+
+# Delete a custom role
+az role definition delete --name "{{ role.name }}"
+{% else %}
+# Assign this built-in role to a user at resource group scope
+az role assignment create --assignee user@contoso.com \
+  --role "{{ role.name }}" \
+  --scope /subscriptions/{sub-id}/resourceGroups/{rg-name}
+{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

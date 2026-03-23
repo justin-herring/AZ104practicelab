@@ -1,0 +1,320 @@
+/* AZ-104 Lab — Azure-inspired custom styles */
+
+:root {
+  --azure-blue:      #0078D4;
+  --azure-dark:      #004578;
+  --azure-light:     #EFF6FC;
+  --azure-border:    #C8D9ED;
+  --success-green:   #107C10;
+  --warn-orange:     #D83B01;
+  --deny-red:        #A4262C;
+  --allow-green:     #107C10;
+  --scope-mg:        #5C2D91;   /* purple for management group */
+  --scope-sub:       #0078D4;   /* blue for subscription */
+  --scope-rg:        #00B4D8;   /* teal for resource group */
+  --scope-res:       #00C4B4;   /* cyan for resource */
+}
+
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ── Navbar ── */
+.navbar-azure {
+  background-color: var(--azure-blue) !important;
+}
+.navbar-azure .navbar-brand,
+.navbar-azure .nav-link {
+  color: #ffffff !important;
+}
+.navbar-azure .nav-link:hover {
+  color: #cce4ff !important;
+}
+.navbar-azure .nav-link.active {
+  color: #ffffff !important;
+  font-weight: 600;
+  border-bottom: 2px solid #ffffff;
+}
+
+/* ── Page title strip ── */
+.page-header {
+  background: linear-gradient(135deg, var(--azure-blue) 0%, var(--azure-dark) 100%);
+  color: #fff;
+  padding: 1.2rem 1.5rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 0 6px 6px;
+}
+.page-header h1, .page-header h2 {
+  margin-bottom: 0.2rem;
+  font-weight: 600;
+}
+.page-header .breadcrumb {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 0;
+}
+.page-header .breadcrumb-item, .page-header .breadcrumb-item a {
+  color: rgba(255,255,255,0.8);
+}
+.page-header .breadcrumb-item.active {
+  color: #fff;
+}
+
+/* ── Cards ── */
+.card {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.card-header {
+  background-color: var(--azure-light);
+  border-bottom: 1px solid var(--azure-border);
+  font-weight: 600;
+  color: var(--azure-dark);
+}
+
+/* ── Stat cards (dashboard) ── */
+.stat-card {
+  border-left: 4px solid var(--azure-blue);
+  transition: transform 0.15s;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
+}
+.stat-card .stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--azure-blue);
+  line-height: 1;
+}
+.stat-card .stat-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+}
+
+/* ── Scope badges ── */
+.badge-scope-mg  { background-color: var(--scope-mg);  color: #fff; }
+.badge-scope-sub { background-color: var(--scope-sub); color: #fff; }
+.badge-scope-rg  { background-color: var(--scope-rg);  color: #fff; }
+.badge-scope-res { background-color: var(--scope-res); color: #333; }
+
+/* ── Decision badges ── */
+.decision-allow {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.decision-deny {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+/* ── Evaluation steps ── */
+.step-allow { border-left: 4px solid var(--allow-green); background-color: #f0fff0; }
+.step-deny  { border-left: 4px solid var(--deny-red);    background-color: #fff0f0; }
+.step-skip  { border-left: 4px solid #adb5bd;            background-color: #f8f9fa; }
+.step-warn  { border-left: 4px solid var(--warn-orange);  background-color: #fff8f0; }
+.eval-step {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* ── Tables ── */
+.table th {
+  background-color: var(--azure-light);
+  color: var(--azure-dark);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--azure-border);
+}
+.table-hover tbody tr:hover {
+  background-color: var(--azure-light);
+}
+
+/* ── Resource type icons ── */
+.resource-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.resource-icon-vm       { background-color: #e8f4ff; color: #0078D4; }
+.resource-icon-storage  { background-color: #fff3cd; color: #856404; }
+.resource-icon-network  { background-color: #e8ffd4; color: #2d6a4f; }
+.resource-icon-web      { background-color: #ffe8f4; color: #9b2c6e; }
+.resource-icon-db       { background-color: #f0e8ff; color: #5c2d91; }
+.resource-icon-vault    { background-color: #ffe8e8; color: #a4262c; }
+.resource-icon-default  { background-color: #e8e8e8; color: #555; }
+
+/* ── Hierarchy tree ── */
+.hierarchy-tree { font-size: 0.9rem; }
+.hierarchy-mg   { border-left: 3px solid var(--scope-mg);  padding-left: 0.8rem; margin-bottom: 0.5rem; }
+.hierarchy-sub  { border-left: 3px solid var(--scope-sub); padding-left: 0.8rem; margin-left: 1.2rem; margin-bottom: 0.3rem; }
+.hierarchy-rg   { border-left: 3px solid var(--scope-rg);  padding-left: 0.8rem; margin-left: 2.4rem; margin-bottom: 0.25rem; }
+.hierarchy-res  { border-left: 3px solid var(--scope-res); padding-left: 0.5rem; margin-left: 3.6rem; font-size: 0.82rem; }
+
+/* ── Lab cards ── */
+.lab-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  transition: box-shadow 0.15s;
+  cursor: pointer;
+}
+.lab-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.lab-card.completed { border-color: var(--allow-green); }
+.lab-card .lab-domain {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c757d;
+}
+.difficulty-beginner     { color: #28a745; }
+.difficulty-intermediate { color: #fd7e14; }
+.difficulty-advanced     { color: #dc3545; }
+
+/* ── Lab steps ── */
+.lab-step {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.lab-step .step-number {
+  width: 28px;
+  height: 28px;
+  background-color: var(--azure-blue);
+  color: #fff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.cli-block {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+.exam-tip {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.875rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ── Quiz ── */
+.quiz-option {
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  user-select: none;
+}
+.quiz-option:hover { border-color: var(--azure-blue); background-color: var(--azure-light); }
+.quiz-option.selected { border-color: var(--azure-blue); background-color: var(--azure-light); }
+.quiz-option.correct  { border-color: #28a745; background-color: #d4edda; }
+.quiz-option.incorrect { border-color: #dc3545; background-color: #f8d7da; }
+.quiz-progress-bar { height: 8px; border-radius: 4px; background-color: var(--azure-border); }
+.quiz-progress-fill { height: 100%; border-radius: 4px; background-color: var(--azure-blue); transition: width 0.3s; }
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 6px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto;
+  font-weight: 700;
+}
+.score-pass { border-color: var(--allow-green); color: var(--allow-green); }
+.score-fail { border-color: var(--deny-red); color: var(--deny-red); }
+
+/* ── Warnings ── */
+.warning-item {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.875rem;
+  margin-bottom: 0.4rem;
+}
+
+/* ── Activity log ── */
+.log-succeeded { color: var(--allow-green); font-weight: 600; }
+.log-failed    { color: var(--deny-red);    font-weight: 600; }
+.log-accepted  { color: var(--azure-blue);  font-weight: 600; }
+
+/* ── Buttons ── */
+.btn-azure {
+  background-color: var(--azure-blue);
+  border-color: var(--azure-blue);
+  color: #fff;
+}
+.btn-azure:hover {
+  background-color: var(--azure-dark);
+  border-color: var(--azure-dark);
+  color: #fff;
+}
+.btn-azure-outline {
+  color: var(--azure-blue);
+  border-color: var(--azure-blue);
+}
+.btn-azure-outline:hover {
+  background-color: var(--azure-blue);
+  color: #fff;
+}
+
+/* ── Info callout ── */
+.callout {
+  border-left: 4px solid var(--azure-blue);
+  background-color: var(--azure-light);
+  padding: 0.75rem 1rem;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+.callout-warn { border-left-color: #ffc107; background-color: #fff8e1; }
+.callout-tip  { border-left-color: var(--allow-green); background-color: #f0fff4; }
+
+/* ── MFA badge ── */
+.mfa-on  { color: var(--allow-green); font-weight: 600; }
+.mfa-off { color: var(--deny-red); font-weight: 600; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .stat-card .stat-number { font-size: 1.5rem; }
+  .page-header { padding: 1rem; }
+}

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AZ-104 Lab{% endblock %} — Azure Practice Lab</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav class="navbar navbar-expand-lg navbar-azure py-2">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand fw-bold me-4" href="{{ url_for('dashboard') }}">
+      <i class="bi bi-cloud me-2"></i>AZ-104 Lab
+    </a>
+    <button class="navbar-toggler border-light" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <i class="bi bi-list text-white fs-4"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav me-auto">
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% if request.path.startswith('/identity') %}active{% endif %}"
+             href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-person-badge me-1"></i>Identity
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('users_list') }}"><i class="bi bi-person me-2 text-muted"></i>Users</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('groups_list') }}"><i class="bi bi-people me-2 text-muted"></i>Groups</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('service_principals_list') }}"><i class="bi bi-app me-2 text-muted"></i>Service Principals</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% if request.path.startswith('/rbac') %}active{% endif %}"
+             href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-shield-lock me-1"></i>RBAC
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('rbac_assignments') }}"><i class="bi bi-person-check me-2 text-muted"></i>Role Assignments</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('rbac_roles') }}"><i class="bi bi-card-list me-2 text-muted"></i>Role Definitions</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('rbac_simulator') }}"><i class="bi bi-play-circle me-2 text-primary"></i><strong>Access Simulator</strong></a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == '/resources' %}active{% endif %}"
+             href="{{ url_for('resources_hierarchy') }}">
+            <i class="bi bi-diagram-3 me-1"></i>Resources
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path.startswith('/labs') %}active{% endif %}"
+             href="{{ url_for('labs_list') }}">
+            <i class="bi bi-journal-code me-1"></i>Labs
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path.startswith('/quiz') %}active{% endif %}"
+             href="{{ url_for('quiz_home') }}">
+            <i class="bi bi-patch-question me-1"></i>Quiz
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.path == '/activity-log' %}active{% endif %}"
+             href="{{ url_for('activity_log') }}">
+            <i class="bi bi-activity me-1"></i>Activity Log
+          </a>
+        </li>
+
+      </ul>
+
+      <!-- Exam domain quick reference -->
+      <span class="navbar-text text-white-50 small d-none d-lg-inline">
+        <i class="bi bi-mortarboard me-1"></i>AZ-104 Prep
+      </span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Flash Messages ── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container-fluid px-3 mt-2">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-1 py-2" role="alert">
+          <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% elif category == 'warning' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ── Main Content ── -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ── Footer ── -->
+<footer class="border-top mt-5 py-3 bg-white">
+  <div class="container-fluid px-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <small class="text-muted">
+        <i class="bi bi-cloud me-1"></i>AZ-104 Azure Practice Lab — Contoso Ltd environment
+      </small>
+      <small class="text-muted">
+        <i class="bi bi-book me-1"></i>
+        <a href="https://learn.microsoft.com/en-us/certifications/exams/az-104" class="text-muted" target="_blank" rel="noopener">
+          Exam AZ-104 Docs
+        </a>
+      </small>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

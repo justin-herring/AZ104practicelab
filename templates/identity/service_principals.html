@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Service Principals{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Identity</li><li class="breadcrumb-item active">Service Principals</li></ol></nav>
+    <h2><i class="bi bi-app me-2"></i>Service Principals & Managed Identities</h2>
+    <small class="opacity-75">Non-human identities for applications and Azure services</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-lightbulb me-2"></i>SP vs Managed Identity</div>
+        <div class="card-body">
+          <div class="callout mb-3">
+            <strong>Service Principal (Application)</strong><br>
+            Created when you register an app in Entra ID. You manage credentials (client secret or certificate). Used for DevOps pipelines, external apps, and cross-tenant scenarios.
+          </div>
+          <div class="callout callout-tip mb-3">
+            <strong>Managed Identity</strong> (preferred)<br>
+            Azure automatically creates and manages the credentials. No secrets to store or rotate. Two types:
+            <ul class="mb-0 mt-1">
+              <li><strong>System-assigned:</strong> Tied to a specific resource. Deleted when resource is deleted.</li>
+              <li><strong>User-assigned:</strong> Independent resource. Can be assigned to multiple VMs/services.</li>
+            </ul>
+          </div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>Use Managed Identity wherever possible — eliminates credential management risk.</div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>For DevOps pipelines, Service Principals with federated credentials (OIDC) are preferred over client secrets.</div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>App ID (Client ID) uniquely identifies the service principal in the tenant.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-app me-2"></i>{{ sps|length }} Service Principals</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Display Name</th>
+                <th>Type</th>
+                <th>App ID</th>
+                <th>Role Assignments</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sp in sps %}
+              <tr>
+                <td>
+                  <span class="fw-semibold">
+                    {% if sp.sp_type == 'ManagedIdentity' %}
+                      <i class="bi bi-robot me-1 text-success"></i>
+                    {% else %}
+                      <i class="bi bi-app me-1 text-primary"></i>
+                    {% endif %}
+                    {{ sp.display_name }}
+                  </span>
+                  {% if not sp.account_enabled %}<span class="badge bg-secondary ms-1">Disabled</span>{% endif %}
+                </td>
+                <td>
+                  {% if sp.sp_type == 'ManagedIdentity' %}
+                    <span class="badge bg-success">Managed Identity</span>
+                  {% else %}
+                    <span class="badge bg-primary">Application</span>
+                  {% endif %}
+                </td>
+                <td><code class="small text-muted">{{ sp.app_id[:8] }}...</code></td>
+                <td><span class="badge bg-light text-dark border">{{ sp.role_assignments|length }}</span></td>
+                <td><small class="text-muted text-truncate d-inline-block" style="max-width:200px">{{ sp.description or '—' }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-terminal me-2"></i>Common Azure CLI Commands</div>
+        <div class="card-body">
+          <div class="cli-block"># Create a service principal for a specific application
+az ad sp create-for-rbac --name "myapp-sp" --role Contributor \
+  --scopes /subscriptions/{sub-id}/resourceGroups/rg-web-prod
+
+# Create a user-assigned managed identity
+az identity create --name "webapp-identity" --resource-group rg-web-prod
+
+# Assign managed identity to a VM
+az vm identity assign --name web-vm-01 --resource-group rg-web-prod \
+  --identities webapp-identity
+
+# List service principals
+az ad sp list --all --output table
+
+# Show service principal role assignments
+az role assignment list --assignee {app-id} --all --output table</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

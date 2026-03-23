@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Labs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-journal-code me-2"></i>AZ-104 Guided Labs</h2>
+    <small class="opacity-75">Scenario-based exercises mapped to AZ-104 exam domains</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+
+  <!-- Progress bar -->
+  {% set completed = labs | selectattr('is_completed') | list | length %}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="fw-semibold small">Overall Progress</span>
+        <span class="small text-muted">{{ completed }}/{{ labs|length }} labs completed</span>
+      </div>
+      <div class="quiz-progress-bar">
+        <div class="quiz-progress-fill" style="width: {% if labs|length > 0 %}{{ (completed / labs|length * 100)|int }}{% else %}0{% endif %}%"></div>
+      </div>
+    </div>
+  </div>
+
+  {% for domain in domains %}
+  <h5 class="text-muted mb-2 mt-4">
+    <i class="bi bi-{% if 'Identity' in domain %}person-badge{% elif 'Storage' in domain %}hdd{% elif 'Compute' in domain %}display{% elif 'Network' in domain %}diagram-3{% else %}activity{% endif %} me-1"></i>
+    {{ domain }}
+  </h5>
+  <div class="row g-3 mb-2">
+    {% for lab in labs if lab.domain == domain %}
+    <div class="col-md-6 col-lg-4">
+      <a href="{{ url_for('lab_detail', lab_id=lab.id) }}" class="text-decoration-none">
+        <div class="card lab-card h-100 {% if lab.is_completed %}completed{% endif %}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="lab-domain">Lab {{ lab.display_order }}</span>
+              {% if lab.is_completed %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-circle text-muted"></i>
+              {% endif %}
+            </div>
+            <h6 class="fw-semibold mb-1">{{ lab.title }}</h6>
+            <p class="text-muted small mb-2">{{ lab.description[:120] }}{% if lab.description|length > 120 %}…{% endif %}</p>
+            <div class="d-flex gap-2 flex-wrap">
+              <span class="badge bg-light text-dark border difficulty-{{ lab.difficulty|lower }}">
+                {{ lab.difficulty }}
+              </span>
+              <span class="badge bg-light text-dark border">
+                <i class="bi bi-clock me-1"></i>{{ lab.duration }}
+              </span>
+              <span class="badge bg-light text-dark border">
+                {{ lab.objectives_list()|length }} objectives
+              </span>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}RBAC Simulator{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">RBAC</li><li class="breadcrumb-item active">Access Simulator</li></ol></nav>
+    <h2><i class="bi bi-play-circle me-2"></i>Azure RBAC Access Simulator</h2>
+    <small class="opacity-75">Check whether a principal can perform an action at a given scope — with full evaluation trace</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="callout mb-3">
+    <strong>How it works:</strong> Select a principal, action, and target scope.
+    The simulator evaluates all role assignments using Azure's scope inheritance rules and shows
+    exactly which assignment granted (or denied) access — just like <code>az role assignment list</code> + <code>az role assignment check</code>.
+  </div>
+
+  <div class="row g-3">
+    <!-- Simulator Form -->
+    <div class="col-md-5 col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-sliders me-2"></i>Configure Check</div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">1. Principal Type</label>
+            <select id="simPrincipalType" class="form-select form-select-sm" onchange="updatePrincipalOptions()">
+              <option value="user">User</option>
+              <option value="group">Group</option>
+              <option value="sp">Service Principal</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">2. Principal</label>
+            <select id="simPrincipalId" class="form-select form-select-sm">
+              {% for user in users %}
+              <option value="{{ user.id }}" data-ptype="user">{{ user.display_name }}</option>
+              {% endfor %}
+              {% for group in groups %}
+              <option value="{{ group.id }}" data-ptype="group" style="display:none">{{ group.display_name }}</option>
+              {% endfor %}
+              {% for sp in sps %}
+              <option value="{{ sp.id }}" data-ptype="sp" style="display:none">{{ sp.display_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">3. Action</label>
+            <select id="simActionSelect" class="form-select form-select-sm mb-1" onchange="updateActionInput()">
+              <option value="">— pick a sample action —</option>
+              {% for action, label in sample_actions %}
+              <option value="{{ action }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <input type="text" id="simAction" class="form-control form-control-sm"
+                   placeholder="Microsoft.Compute/virtualMachines/read"
+                   value="Microsoft.Compute/virtualMachines/start/action">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">4. Target Scope Type</label>
+            <select id="simScopeType" class="form-select form-select-sm" onchange="updateScopeOptions()">
+              <option value="mg">Management Group</option>
+              <option value="sub">Subscription</option>
+              <option value="rg" selected>Resource Group</option>
+              <option value="resource">Resource</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">5. Scope</label>
+            <select id="simScopeId" class="form-select form-select-sm">
+              {% for mg in mgs %}
+              <option value="{{ mg.id }}" data-stype="mg" style="display:none">{{ mg.display_name }}</option>
+              {% endfor %}
+              {% for sub in subs %}
+              <option value="{{ sub.id }}" data-stype="sub" style="display:none">{{ sub.name }}</option>
+              {% endfor %}
+              {% for rg in rgs %}
+              <option value="{{ rg.id }}" data-stype="rg">{{ rg.name }}</option>
+              {% endfor %}
+              {% for res in resources %}
+              <option value="{{ res.id }}" data-stype="resource" style="display:none">{{ res.name }} ({{ res.type_short }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <button id="simBtn" onclick="runSimulation()" class="btn btn-azure w-100">
+            <i class="bi bi-play-fill me-1"></i>Check Access
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick tests -->
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-lightning me-2"></i>Try These Scenarios</div>
+        <div class="card-body p-2">
+          {% set scenarios = [
+            ("Alice", "user", 0, "Microsoft.Compute/virtualMachines/write", "rg", 0, "ALLOW — Owner via MG"),
+            ("Bob", "user", 1, "Microsoft.Sql/servers/write", "rg", 1, "DENY — Reader only"),
+            ("Bob", "user", 1, "Microsoft.Compute/virtualMachines/write", "rg", 0, "ALLOW — Contributor"),
+            ("Dave", "user", 3, "Microsoft.Compute/virtualMachines/write", "rg", 0, "DENY — wrong RG"),
+            ("Eve", "user", 4, "Microsoft.Security/securityStatuses/read", "sub", 0, "ALLOW — Security Reader"),
+          ] %}
+          {% for principal, ptype, pidx, action, stype, sidx, expected in scenarios %}
+          <button class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 py-1"
+                  onclick="loadScenario('{{ ptype }}', {{ pidx }}, '{{ action }}', '{{ stype }}', {{ sidx }})">
+            <code style="font-size:0.7rem">{{ principal }}: {{ action.split('/')[-1] }}</code>
+            <br><small class="text-muted">→ {{ expected }}</small>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="col-md-7 col-lg-8">
+      <div id="resultsPanel" style="display:none">
+
+        <!-- Decision -->
+        <div id="decisionCard" class="card mb-3">
+          <div class="card-body text-center py-4">
+            <div id="decisionBadge" class="mb-2"></div>
+            <p id="decisionReason" class="mb-1 fw-semibold"></p>
+            <small id="decisionDetail" class="text-muted"></small>
+          </div>
+        </div>
+
+        <!-- Evaluation Trace -->
+        <div class="card">
+          <div class="card-header"><i class="bi bi-list-ol me-2"></i>Evaluation Trace</div>
+          <div class="card-body" id="stepsContainer">
+          </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="card mt-3">
+          <div class="card-header"><i class="bi bi-book me-2"></i>Azure RBAC Evaluation Rules</div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <div class="callout callout-tip">
+                  <strong>Additive model:</strong> Access = union of all applicable role assignments. More role assignments = more access.
+                </div>
+                <div class="callout">
+                  <strong>Scope inheritance:</strong> Assignments at broader scopes apply to all child scopes (MG → Sub → RG → Resource).
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="callout callout-warn">
+                  <strong>Default deny:</strong> No explicit allow = access denied. Azure denies everything by default.
+                </div>
+                <div class="callout">
+                  <strong>NotActions ≠ Deny:</strong> NotActions only removes from that role's permissions. Another role can still grant the action.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="emptyState" class="text-center py-5 text-muted">
+        <i class="bi bi-play-circle fs-1 d-block mb-3 opacity-25"></i>
+        <h5>Configure a check and click "Check Access"</h5>
+        <p>The simulator will show which role assignment granted or denied access, with a full evaluation trace.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+const users  = [{% for u in users %}{"id":{{u.id}},"name":"{{u.display_name}}"},{% endfor %}];
+const groups = [{% for g in groups %}{"id":{{g.id}},"name":"{{g.display_name}}"},{% endfor %}];
+const sps    = [{% for s in sps %}{"id":{{s.id}},"name":"{{s.display_name}}"},{% endfor %}];
+const mgs    = [{% for m in mgs %}{"id":{{m.id}},"name":"{{m.display_name}}"},{% endfor %}];
+const subs   = [{% for s in subs %}{"id":{{s.id}},"name":"{{s.name}}"},{% endfor %}];
+const rgs    = [{% for r in rgs %}{"id":{{r.id}},"name":"{{r.name}}"},{% endfor %}];
+const resources = [{% for r in resources %}{"id":{{r.id}},"name":"{{r.name}}"},{% endfor %}];
+
+function updatePrincipalOptions() {
+  const type = document.getElementById('simPrincipalType').value;
+  const sel = document.getElementById('simPrincipalId');
+  Array.from(sel.options).forEach(o => {
+    o.style.display = o.dataset.ptype === type ? '' : 'none';
+  });
+  const first = Array.from(sel.options).find(o => o.style.display !== 'none');
+  if (first) first.selected = true;
+}
+
+function updateScopeOptions() {
+  const type = document.getElementById('simScopeType').value;
+  const sel = document.getElementById('simScopeId');
+  Array.from(sel.options).forEach(o => {
+    o.style.display = o.dataset.stype === type ? '' : 'none';
+  });
+  const first = Array.from(sel.options).find(o => o.style.display !== 'none');
+  if (first) first.selected = true;
+}
+
+function updateActionInput() {
+  const sel = document.getElementById('simActionSelect');
+  if (sel.value) document.getElementById('simAction').value = sel.value;
+}
+
+function loadScenario(ptype, pidx, action, stype, sidx) {
+  document.getElementById('simPrincipalType').value = ptype;
+  updatePrincipalOptions();
+  const pSel = document.getElementById('simPrincipalId');
+  const pOpts = Array.from(pSel.options).filter(o => o.style.display !== 'none');
+  if (pOpts[pidx]) pOpts[pidx].selected = true;
+
+  document.getElementById('simAction').value = action;
+
+  document.getElementById('simScopeType').value = stype;
+  updateScopeOptions();
+  const sSel = document.getElementById('simScopeId');
+  const sOpts = Array.from(sSel.options).filter(o => o.style.display !== 'none');
+  if (sOpts[sidx]) sOpts[sidx].selected = true;
+
+  runSimulation();
+}
+
+async function runSimulation() {
+  const btn = document.getElementById('simBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Evaluating…';
+
+  const payload = {
+    principal_type: document.getElementById('simPrincipalType').value,
+    principal_id:   parseInt(document.getElementById('simPrincipalId').value),
+    action:         document.getElementById('simAction').value.trim(),
+    scope_type:     document.getElementById('simScopeType').value,
+    scope_id:       parseInt(document.getElementById('simScopeId').value),
+  };
+
+  try {
+    const resp = await fetch('/rbac/simulator/evaluate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    renderResult(data);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Check Access';
+  }
+}
+
+function renderResult(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+
+  const isAllow = data.decision === 'ALLOW';
+  document.getElementById('decisionCard').style.backgroundColor = isAllow ? '#f0fff4' : '#fff5f5';
+  document.getElementById('decisionBadge').innerHTML =
+    `<span class="${isAllow ? 'decision-allow' : 'decision-deny'}">`+
+    `<i class="bi bi-${isAllow ? 'check-circle-fill' : 'x-circle-fill'} me-2"></i>`+
+    `${data.decision}</span>`;
+
+  document.getElementById('decisionReason').textContent = data.reason;
+  document.getElementById('decisionDetail').textContent =
+    `${data.principal} attempting "${data.action}"` +
+    (data.matching_role ? ` — granted by role: ${data.matching_role} @ ${data.matching_scope}` : '');
+
+  const container = document.getElementById('stepsContainer');
+  if (!data.steps || data.steps.length === 0) {
+    container.innerHTML = '<p class="text-muted small">No evaluation steps recorded.</p>';
+    return;
+  }
+
+  container.innerHTML = data.steps.map((step, i) => {
+    let cls = 'step-skip';
+    let icon = 'bi-dash-circle text-muted';
+    if (step.outcome === 'MATCHED_ALLOW')   { cls = 'step-allow'; icon = 'bi-check-circle-fill text-success'; }
+    if (step.outcome === 'MATCHED_DENY')    { cls = 'step-deny';  icon = 'bi-x-circle-fill text-danger'; }
+    if (step.outcome === 'BLOCKED_BY_NOT_ACTION') { cls = 'step-warn'; icon = 'bi-dash-circle-fill text-warning'; }
+
+    const scopeBadge = {
+      ManagementGroup: '<span class="badge badge-scope-mg">MG</span>',
+      Subscription:    '<span class="badge badge-scope-sub">Sub</span>',
+      ResourceGroup:   '<span class="badge badge-scope-rg">RG</span>',
+      Resource:        '<span class="badge badge-scope-res">Res</span>',
+    }[step.scope_level] || '';
+
+    return `<div class="eval-step ${cls}">
+      <div class="d-flex align-items-start gap-2">
+        <i class="bi ${icon} mt-1 flex-shrink-0"></i>
+        <div>
+          <div class="fw-semibold small">${i+1}. ${step.role_name} ${scopeBadge} <code class="small text-muted">${step.scope_name}</code></div>
+          <div class="text-muted" style="font-size:0.8rem">${step.reason}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+{% endblock %}
+{% endblock %}

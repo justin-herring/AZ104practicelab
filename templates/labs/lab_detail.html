@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}{{ lab.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('labs_list') }}" class="text-white-50">Labs</a></li>
+      <li class="breadcrumb-item active">Lab {{ lab.display_order }}</li>
+    </ol></nav>
+    <h2><i class="bi bi-journal-code me-2"></i>{{ lab.title }}</h2>
+    <small class="opacity-75">
+      {{ lab.domain }} ·
+      <span class="difficulty-{{ lab.difficulty|lower }}">{{ lab.difficulty }}</span> ·
+      <i class="bi bi-clock me-1"></i>{{ lab.duration }}
+    </small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row g-3">
+
+    <!-- Main Lab Content -->
+    <div class="col-md-8">
+
+      <!-- Scenario -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-file-text me-2"></i>Scenario</div>
+        <div class="card-body">
+          <p>{{ lab.description }}</p>
+        </div>
+      </div>
+
+      <!-- Learning Objectives -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-bullseye me-2"></i>Learning Objectives</div>
+        <div class="card-body">
+          <ul class="mb-0">
+            {% for obj in lab.objectives_list() %}
+            <li class="mb-1">{{ obj }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-list-ol me-2"></i>Lab Steps</div>
+        <div class="card-body">
+          {% for step in lab.steps_list() %}
+          <div class="lab-step">
+            <div class="d-flex align-items-start gap-3">
+              <div class="step-number flex-shrink-0">{{ loop.index }}</div>
+              <div class="w-100">
+                <div class="fw-semibold mb-1">{{ step.title }}</div>
+                <p class="text-muted small mb-2">{{ step.instruction }}</p>
+                {% if step.cli %}
+                <div class="cli-block">{{ step.cli }}</div>
+                {% endif %}
+                {% if step.note %}
+                <div class="callout callout-tip mt-2">
+                  <i class="bi bi-lightbulb me-1 text-success"></i><strong>Note:</strong> {{ step.note }}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+
+      <!-- Status + Navigation -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <form action="{{ url_for('lab_toggle_complete', lab_id=lab.id) }}" method="POST">
+            <button type="submit" class="btn w-100 {% if lab.is_completed %}btn-outline-success{% else %}btn-azure{% endif %}">
+              {% if lab.is_completed %}
+                <i class="bi bi-check-circle-fill me-1"></i>Mark Incomplete
+              {% else %}
+                <i class="bi bi-check-circle me-1"></i>Mark Complete
+              {% endif %}
+            </button>
+          </form>
+
+          <div class="d-flex gap-2 mt-2">
+            {% if prev_lab %}
+            <a href="{{ url_for('lab_detail', lab_id=prev_lab.id) }}" class="btn btn-outline-secondary btn-sm flex-fill">
+              ‹ Previous
+            </a>
+            {% endif %}
+            {% if next_lab %}
+            <a href="{{ url_for('lab_detail', lab_id=next_lab.id) }}" class="btn btn-outline-secondary btn-sm flex-fill">
+              Next ›
+            </a>
+            {% endif %}
+          </div>
+
+          <a href="{{ url_for('labs_list') }}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+            <i class="bi bi-grid me-1"></i>All Labs
+          </a>
+        </div>
+      </div>
+
+      <!-- Related Azure Resources -->
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-link me-2"></i>Practice in This Lab</div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">Use these parts of the app while working through this lab:</p>
+          {% if 'Identity' in lab.domain or 'RBAC' in lab.domain or 'Governance' in lab.domain %}
+          <a href="{{ url_for('users_list') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-people me-1"></i>Users</a>
+          <a href="{{ url_for('groups_list') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-people me-1"></i>Groups</a>
+          <a href="{{ url_for('rbac_assignments') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-person-check me-1"></i>Role Assignments</a>
+          <a href="{{ url_for('rbac_simulator') }}" class="btn btn-sm btn-azure w-100 mb-1"><i class="bi bi-play-circle me-1"></i>RBAC Simulator</a>
+          {% elif 'Storage' in lab.domain %}
+          <a href="{{ url_for('resources_hierarchy') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-diagram-3 me-1"></i>Resources</a>
+          {% elif 'Network' in lab.domain %}
+          <a href="{{ url_for('resources_hierarchy') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-diagram-3 me-1"></i>Network Resources</a>
+          {% elif 'Monitor' in lab.domain %}
+          <a href="{{ url_for('activity_log') }}" class="btn btn-sm btn-outline-secondary w-100 mb-1"><i class="bi bi-activity me-1"></i>Activity Log</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Exam Tips -->
+      {% if lab.tips_list() %}
+      <div class="card">
+        <div class="card-header"><i class="bi bi-mortarboard me-2"></i>Exam Tips</div>
+        <div class="card-body p-2">
+          {% for tip in lab.tips_list() %}
+          <div class="exam-tip">
+            <i class="bi bi-star-fill me-1 text-warning"></i>{{ tip }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

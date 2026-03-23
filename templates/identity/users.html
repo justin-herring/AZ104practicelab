@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Identity</li><li class="breadcrumb-item active">Users</li></ol></nav>
+    <h2><i class="bi bi-people me-2"></i>Entra ID Users</h2>
+    <small class="opacity-75">Microsoft Entra ID (Azure Active Directory) user identities</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="callout mb-3">
+    <strong>Entra ID Users</strong> are individual identities (human or service accounts).
+    Best practice: assign roles to <strong>groups</strong>, not individual users.
+    Enable <strong>MFA</strong> for all member accounts.
+    <a href="https://learn.microsoft.com/en-us/entra/identity/" target="_blank" rel="noopener" class="ms-2">Learn more →</a>
+  </div>
+
+  <div class="row g-3">
+    <!-- Create User Form -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-person-plus me-2"></i>Create User</div>
+        <div class="card-body">
+          <form action="{{ url_for('user_create') }}" method="POST">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Display Name</label>
+              <input type="text" name="display_name" class="form-control form-control-sm" placeholder="Jane Smith" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">User Principal Name (UPN)</label>
+              <input type="email" name="upn" class="form-control form-control-sm" placeholder="jane@contoso.com" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Job Title</label>
+              <input type="text" name="job_title" class="form-control form-control-sm" placeholder="Cloud Engineer">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Department</label>
+              <input type="text" name="department" class="form-control form-control-sm" placeholder="Engineering">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">User Type</label>
+              <select name="user_type" class="form-select form-select-sm">
+                <option value="Member">Member (internal)</option>
+                <option value="Guest">Guest (external B2B)</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-azure btn-sm w-100">
+              <i class="bi bi-person-plus me-1"></i>Create User
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Key concepts -->
+      <div class="card mt-3">
+        <div class="card-header"><i class="bi bi-lightbulb me-2"></i>Exam Key Concepts</div>
+        <div class="card-body">
+          <div class="exam-tip"><i class="bi bi-star me-1"></i><strong>Member</strong> = internal org user. <strong>Guest</strong> = B2B external (needs invitation).</div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>MFA should be enforced for all privileged users via <strong>Conditional Access</strong>.</div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>UPN format: <code>user@domain.com</code> — must be unique in the tenant.</div>
+          <div class="exam-tip"><i class="bi bi-star me-1"></i>Deleted users can be recovered for <strong>30 days</strong> from the recycle bin.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-people me-2"></i>{{ users|length }} Users</span>
+          <span>
+            <span class="badge bg-success me-1">{{ users|selectattr('mfa_enabled')|list|length }} MFA On</span>
+            <span class="badge bg-danger">{{ users|rejectattr('mfa_enabled')|list|length }} MFA Off</span>
+          </span>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Display Name</th>
+                <th>UPN</th>
+                <th>Type</th>
+                <th>Department</th>
+                <th>MFA</th>
+                <th>Groups</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('user_detail', user_id=user.id) }}" class="text-decoration-none fw-semibold">
+                    <i class="bi bi-person-circle me-1 text-muted"></i>{{ user.display_name }}
+                  </a>
+                  {% if not user.account_enabled %}<span class="badge bg-secondary ms-1">Disabled</span>{% endif %}
+                </td>
+                <td><small class="text-muted">{{ user.upn }}</small></td>
+                <td>
+                  {% if user.user_type == 'Guest' %}
+                    <span class="badge bg-warning text-dark">Guest</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Member</span>
+                  {% endif %}
+                </td>
+                <td><small>{{ user.department or '—' }}</small></td>
+                <td>
+                  {% if user.mfa_enabled %}
+                    <span class="mfa-on"><i class="bi bi-shield-check"></i></span>
+                  {% else %}
+                    <span class="mfa-off"><i class="bi bi-shield-x"></i></span>
+                  {% endif %}
+                </td>
+                <td><small class="text-muted">{{ user.groups|length }} group(s)</small></td>
+                <td>
+                  <a href="{{ url_for('user_detail', user_id=user.id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

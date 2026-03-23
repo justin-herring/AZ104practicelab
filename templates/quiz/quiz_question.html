@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Question {{ current }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-patch-question me-2"></i>Question {{ current }} of {{ total }}</h2>
+    <small class="opacity-75">{{ question.domain }} · {{ question.difficulty }}</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+
+      <!-- Progress -->
+      <div class="mb-3">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>Progress</span><span>{{ current }}/{{ total }}</span>
+        </div>
+        <div class="quiz-progress-bar">
+          <div class="quiz-progress-fill" style="width: {{ (current / total * 100)|int }}%"></div>
+        </div>
+      </div>
+
+      <!-- Question -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex gap-2 mb-3">
+            <span class="badge bg-primary">{{ question.domain }}</span>
+            <span class="badge bg-{% if question.difficulty == 'Easy' %}success{% elif question.difficulty == 'Medium' %}warning text-dark{% else %}danger{% endif %}">{{ question.difficulty }}</span>
+          </div>
+          <p class="fw-semibold mb-3" style="font-size:1.05rem">{{ question.question }}</p>
+
+          <!-- Options -->
+          <div id="optionsContainer">
+            {% set letters = ['A', 'B', 'C', 'D'] %}
+            {% for option in question.options_list() %}
+            {% set i = loop.index0 %}
+            <div class="quiz-option {% if answered and selected_answer == i %}{% if i == question.correct_answer %}correct{% else %}incorrect{% endif %}{% elif answered and i == question.correct_answer %}correct{% endif %}"
+                 onclick="{% if not answered %}selectAnswer({{ i }}){% endif %}"
+                 id="option-{{ i }}">
+              <strong class="me-2">{{ letters[i] }}.</strong>{{ option }}
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Explanation (shown after answer) -->
+          <div id="explanation" class="{% if not answered %}d-none{% endif %} mt-3">
+            <div class="callout callout-tip">
+              <strong><i class="bi bi-lightbulb me-1"></i>Explanation:</strong>
+              <p class="mb-1 mt-1">{{ question.explanation }}</p>
+              {% if question.reference %}
+              <small class="text-muted"><i class="bi bi-book me-1"></i>Reference: {{ question.reference }}</small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="d-flex gap-2">
+        <form action="{{ url_for('quiz_next') }}" method="POST" id="nextForm">
+          <button type="submit" id="nextBtn" class="btn btn-azure {% if not answered %}d-none{% endif %}">
+            {% if current == total %}View Results{% else %}Next Question →{% endif %}
+          </button>
+        </form>
+        <a href="{{ url_for('quiz_home') }}" class="btn btn-outline-secondary">Quit Quiz</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+const correctIndex = {{ question.correct_answer }};
+const questionId   = {{ question.id }};
+const isAnswered   = {{ 'true' if answered else 'false' }};
+
+function selectAnswer(index) {
+  if (isAnswered) return;
+
+  fetch('/quiz/answer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({question_id: questionId, answer: index}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    // Highlight options
+    document.querySelectorAll('.quiz-option').forEach((el, i) => {
+      el.style.cursor = 'default';
+      if (i === index && !data.correct) el.classList.add('incorrect');
+      if (i === data.correct_index) el.classList.add('correct');
+    });
+
+    // Show explanation
+    document.getElementById('explanation').classList.remove('d-none');
+
+    // Show next button
+    document.getElementById('nextBtn').classList.remove('d-none');
+  });
+}
+</script>
+{% endblock %}
+{% endblock %}

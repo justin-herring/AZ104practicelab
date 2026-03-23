@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container-fluid">
+    <h2><i class="bi bi-grid me-2"></i>Azure Practice Lab — Dashboard</h2>
+    <small class="opacity-75">Contoso Ltd · Tenant: contoso.onmicrosoft.com · 2 Subscriptions</small>
+  </div>
+</div>
+
+<div class="container-fluid px-3">
+
+  <!-- ── Stats Row ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100">
+        <div class="card-body">
+          <div class="stat-number">{{ users|length }}</div>
+          <div class="stat-label">Entra ID Users</div>
+          <small class="text-muted">{{ users|selectattr('mfa_enabled')|list|length }} with MFA</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100" style="border-left-color: #5c2d91">
+        <div class="card-body">
+          <div class="stat-number" style="color:#5c2d91">{{ assignments|length }}</div>
+          <div class="stat-label">Role Assignments</div>
+          <small class="text-muted">Across {{ (assignments|map(attribute='scope_level')|list|unique|list)|length }} scope levels</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100" style="border-left-color: #00b4d8">
+        <div class="card-body">
+          <div class="stat-number" style="color:#00b4d8">{{ resources|length }}</div>
+          <div class="stat-label">Azure Resources</div>
+          <small class="text-muted">In {{ rgs|length }} resource groups</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100" style="border-left-color: #107c10">
+        <div class="card-body">
+          <div class="stat-number" style="color:#107c10">{{ completed_labs }}/{{ labs|length }}</div>
+          <div class="stat-label">Labs Completed</div>
+          <small class="text-muted">
+            {% if completed_labs == labs|length %}All done!{% else %}{{ labs|length - completed_labs }} remaining{% endif %}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- ── Security Observations ── -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-shield-exclamation me-2"></i>Security Observations</span>
+          <span class="badge {% if warnings %}bg-warning text-dark{% else %}bg-success{% endif %}">
+            {{ warnings|length }}
+          </span>
+        </div>
+        <div class="card-body">
+          {% if warnings %}
+            {% for w in warnings %}
+              <div class="warning-item"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>{{ w }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="text-success"><i class="bi bi-check-circle me-2"></i>No security observations. Good posture!</div>
+          {% endif %}
+          <div class="callout mt-3">
+            <strong>IAM Best Practice:</strong> Assign roles to <em>groups</em> rather than individual users.
+            Enable MFA for all Member accounts. Use the <a href="{{ url_for('rbac_simulator') }}">RBAC Simulator</a> to verify access.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recent Activity ── -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-activity me-2"></i>Recent Activity Log</span>
+          <a href="{{ url_for('activity_log') }}" class="small text-muted">View all →</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for log in recent_logs %}
+            <div class="list-group-item py-2 px-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="log-{{ log.status|lower }} small">
+                    <i class="bi bi-{% if log.status == 'Succeeded' %}check-circle{% elif log.status == 'Failed' %}x-circle{% else %}clock{% endif %} me-1"></i>
+                    {{ log.status }}
+                  </span>
+                  <div class="small text-truncate" style="max-width:280px">
+                    <code class="text-muted" style="font-size:0.75rem">{{ log.operation }}</code>
+                  </div>
+                  <div class="text-muted" style="font-size:0.75rem">by {{ log.caller }}</div>
+                </div>
+                <small class="text-muted text-nowrap ms-2">{{ log.timestamp.strftime('%H:%M') }}</small>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AZ-104 Exam Domains Progress ── -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-mortarboard me-2"></i>AZ-104 Exam Domains</div>
+        <div class="card-body">
+          {% set domains = [
+            ("Identity & Governance", "bi-person-badge", "20-25%"),
+            ("Storage", "bi-hdd", "15-20%"),
+            ("Compute", "bi-display", "20-25%"),
+            ("Networking", "bi-diagram-3", "20-25%"),
+            ("Monitoring & Backup", "bi-activity", "10-15%"),
+          ] %}
+          {% for domain, icon, weight in domains %}
+            {% set domain_labs = labs|selectattr('domain','equalto',domain)|list %}
+            {% set done = domain_labs|selectattr('is_completed')|list|length %}
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-semibold"><i class="bi {{ icon }} me-1 text-muted"></i>{{ domain }}</span>
+                <small class="text-muted">{{ weight }} of exam · {{ done }}/{{ domain_labs|length }} labs</small>
+              </div>
+              <div class="quiz-progress-bar">
+                <div class="quiz-progress-fill" style="width: {% if domain_labs|length > 0 %}{{ (done / domain_labs|length * 100)|int }}{% else %}0{% endif %}%"></div>
+              </div>
+            </div>
+          {% endfor %}
+          <a href="{{ url_for('labs_list') }}" class="btn btn-azure btn-sm mt-2">
+            <i class="bi bi-journal-code me-1"></i>Go to Labs
+          </a>
+          <a href="{{ url_for('quiz_home') }}" class="btn btn-outline-secondary btn-sm mt-2 ms-2">
+            <i class="bi bi-patch-question me-1"></i>Take a Quiz
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Quick Access ── -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-lightning me-2"></i>Quick Actions</div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <a href="{{ url_for('rbac_simulator') }}" class="btn btn-azure w-100 text-start">
+                <i class="bi bi-play-circle me-2"></i>RBAC Simulator
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{{ url_for('rbac_assignments') }}" class="btn btn-outline-secondary w-100 text-start">
+                <i class="bi bi-person-check me-2"></i>Role Assignments
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{{ url_for('users_list') }}" class="btn btn-outline-secondary w-100 text-start">
+                <i class="bi bi-people me-2"></i>Manage Users
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{{ url_for('resources_hierarchy') }}" class="btn btn-outline-secondary w-100 text-start">
+                <i class="bi bi-diagram-3 me-2"></i>Resource Hierarchy
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{{ url_for('quiz_start') }}?domain=all&count=10" class="btn btn-outline-secondary w-100 text-start">
+                <i class="bi bi-patch-question me-2"></i>Quick Quiz (10Q)
+              </a>
+            </div>
+            <div class="col-6">
+              <a href="{{ url_for('activity_log') }}" class="btn btn-outline-secondary w-100 text-start">
+                <i class="bi bi-activity me-2"></i>Activity Log
+              </a>
+            </div>
+          </div>
+
+          <hr class="my-3">
+          <div class="callout callout-tip">
+            <strong>Try in the RBAC Simulator:</strong><br>
+            <code class="small">Bob + Microsoft.Sql/servers/write @ rg-data-prod → DENY</code><br>
+            <code class="small">Alice + any action @ any scope → ALLOW (Owner via MG)</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Environment Summary ── -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-building me-2"></i>Contoso Azure Environment</div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col">
+              <div class="fw-bold text-purple" style="color:var(--scope-mg)">1</div>
+              <small class="text-muted">Management Groups</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold" style="color:var(--scope-sub)">2</div>
+              <small class="text-muted">Subscriptions</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold" style="color:var(--scope-rg)">{{ rgs|length }}</div>
+              <small class="text-muted">Resource Groups</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold" style="color:var(--scope-res)">{{ resources|length }}</div>
+              <small class="text-muted">Resources</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold text-azure" style="color:var(--azure-blue)">{{ users|length }}</div>
+              <small class="text-muted">Entra ID Users</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold">{{ groups|length }}</div>
+              <small class="text-muted">Groups</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold">{{ sps|length }}</div>
+              <small class="text-muted">Service Principals</small>
+            </div>
+            <div class="col">
+              <div class="fw-bold" style="color:var(--scope-mg)">{{ roles|length }}</div>
+              <small class="text-muted">Role Definitions</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
+</div>
+{% endblock %}
